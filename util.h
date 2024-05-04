@@ -1,12 +1,33 @@
 #pragma once
 #include <gmp.h>
+
+#ifdef __APPLE__
+#include <libkern/OSByteOrder.h>
+
+#define htole32(x) OSSwapHostToLittleInt32(x)
+#define le32toh(x) OSSwapLittleToHostInt32(x)
+
+#else
+// For non-macOS platforms (Linux), include the appropriate header
+#include <endian.h>
+#endif
+
+// util.h
+#ifdef __APPLE__
+#define LE(x) uint32_t x##_le = htole32((uint32_t)x);
+#else
+#define LE(x) uint32_t x##_le = htole32((uint32_t)x);
+#endif
+
 /* convenience macros */
-#define ISPRIME(x) mpz_probab_prime_p(x,10)
-#define NEWZ(x) mpz_t x; mpz_init(x)
+#define ISPRIME(x) mpz_probab_prime_p(x, 10)
+#define NEWZ(x) \
+    mpz_t x;    \
+    mpz_init(x)
 /* these will read/write integers from byte arrays where the
  * least significant byte is first (little endian bytewise). */
-#define BYTES2Z(x,buf,len) mpz_import(x,len,-1,1,0,0,buf)
-#define Z2BYTES(buf,len,x) mpz_export(buf,len,-1,1,0,0,x)
+#define BYTES2Z(x, buf, len) mpz_import(x, len, -1, 1, 0, 0, buf)
+#define Z2BYTES(buf, len, x) mpz_export(buf, len, -1, 1, 0, 0, x)
 #define LE(x) uint32_t x##_le = htole32((uint32_t)x);
 
 /* utility functions */
