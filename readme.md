@@ -1,6 +1,4 @@
-# Computer Security Project: Secure(?) Chat
-
-## _Due:_ Wednesday, May 8th @ 11:59pm
+# Computer Security Project: Secure Chat
 
 ## Synopsis
 
