@@ -6,6 +6,12 @@
 #include <assert.h>
 #include <inttypes.h>
 #include <string.h>
+#include <openssl/pem.h>
+#include <openssl/rsa.h>
+#include <openssl/evp.h>
+#include <openssl/hmac.h>
+#include <openssl/rand.h>
+#include <openssl/err.h>
 
 #ifdef __APPLE__
 #include <libkern/OSByteOrder.h>
@@ -102,4 +108,40 @@ int deserialize_mpz(mpz_t x, int fd)
 	xread(fd, buf, nB);
 	BYTES2Z(x, buf, nB);
 	return 0;
+}
+
+void generate_rsa_keys(const char *private_filename, const char *public_filename)
+{
+	RSA *rsa = NULL;
+	BIGNUM *bignum = BN_new();
+	BN_set_word(bignum, RSA_F4);
+	rsa = RSA_new();
+	RSA_generate_key_ex(rsa, 4096, bignum, NULL);
+
+	// Writing the private key
+	FILE *fp = fopen(private_filename, "wb");
+	if (!fp)
+	{
+		perror("Unable to open file for writing private key");
+		RSA_free(rsa);
+		BN_free(bignum);
+		return;
+	}
+	PEM_write_RSAPrivateKey(fp, rsa, NULL, NULL, 0, NULL, NULL);
+	fclose(fp);
+
+	// Writing the public key
+	fp = fopen(public_filename, "wb");
+	if (!fp)
+	{
+		perror("Unable to open file for writing public key");
+		RSA_free(rsa);
+		BN_free(bignum);
+		return;
+	}
+	PEM_write_RSA_PUBKEY(fp, rsa);
+	fclose(fp);
+
+	RSA_free(rsa);
+	BN_free(bignum);
 }

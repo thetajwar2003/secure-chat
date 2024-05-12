@@ -1,5 +1,9 @@
 #pragma once
 #include <gmp.h>
+#include <openssl/evp.h>
+#include <openssl/hmac.h>
+#include <openssl/rand.h>
+#include <stdlib.h>
 
 #ifdef __APPLE__
 #include <libkern/OSByteOrder.h>
@@ -53,3 +57,5 @@ void xread(int fd, void *buf, size_t nBytes);
 /** Like write(), but retry on EINTR and EWOULDBLOCK,
  * abort on other errors, and don't return early. */
 void xwrite(int fd, const void *buf, size_t nBytes);
+
+void generate_rsa_keys(const char *private_filename, const char *public_filename);
