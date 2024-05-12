@@ -26,6 +26,7 @@
 // Session keys and shared secrets
 dhKey myKey;
 dhKey peerKey;
+unsigned char sharedSecret[512];
 
 static GtkTextBuffer *tbuf; /* transcript buffer */
 static GtkTextBuffer *mbuf; /* message buffer */
@@ -96,6 +97,11 @@ int initServerNet(int port)
     RSA *rsa_private = load_rsa_private_key("server_private.pem");
     RSA *rsa_public = load_rsa_public_key("client_public.pem");
 
+    // Perform mutual authentication
+    send_challenge(sockfd);
+    receive_challenge_and_respond(sockfd, rsa_private);
+    verify_signature(sockfd, rsa_public);
+
     close(listensock);
     /* at this point, should be able to send/recv on sockfd */
     return 0;
@@ -142,6 +148,11 @@ static int initClientNet(char *hostname, int port)
     // Load RSA keys
     RSA *rsa_private = load_rsa_private_key("client_private.pem");
     RSA *rsa_public = load_rsa_public_key("server_public.pem");
+
+    // Perform mutual authentication
+    receive_challenge_and_respond(sockfd, rsa_private);
+    send_challenge(sockfd);
+    verify_signature(sockfd, rsa_public);
 
     return 0;
 }
@@ -421,3 +432,72 @@ void recv_dh_key(int sockfd, dhKey *key)
         fprintf(stderr, "Failed to deserialize public key\n");
     }
 }
+
+// encryption
+void send_challenge(int socket_fd)
+{
+    unsigned char challenge[256]; // Proper size for RSA operations
+    if (!RAND_bytes(challenge, sizeof(challenge)))
+    {
+        fprintf(stderr, "Failed to generate random bytes for challenge\n");
+        return;
+    }
+
+    // Send challenge securely (consider encrypting this if necessary)
+    if (send(socket_fd, challenge, sizeof(challenge), 0) < 0)
+    {
+        perror("Sending challenge failed");
+        return;
+    }
+
+    // Save the challenge for later verification
+    memcpy(sharedSecret, challenge, sizeof(challenge));
+}
+
+void receive_challenge_and_respond(int socket_fd, RSA *private_key)
+{
+    if (private_key == NULL)
+    {
+        fprintf(stderr, "Invalid private RSA key\n");
+        return;
+    }
+
+    unsigned char challenge[256];
+    if (recv(socket_fd, challenge, sizeof(challenge), 0) < 0)
+    {
+        perror("Receiving challenge failed");
+        return;
+    }
+
+    // Save the challenge right after receiving for consistency in verification
+    memcpy(sharedSecret, challenge, sizeof(challenge));
+
+    // Hash the challenge before signing
+    unsigned char hash[SHA256_DIGEST_LENGTH];
+    if (!SHA256(challenge, sizeof(challenge), hash))
+    {
+        fprintf(stderr, "Failed to compute hash of challenge\n");
+        return;
+    }
+
+    unsigned char *signature = malloc(RSA_size(private_key));
+    unsigned int sig_len;
+
+    if (!RSA_sign(NID_sha256, hash, SHA256_DIGEST_LENGTH, signature, &sig_len, private_key))
+    {
+        fprintf(stderr, "Failed to sign challenge: %s\n", ERR_error_string(ERR_get_error(), NULL));
+        free(signature);
+        return;
+    }
+
+    if (send(socket_fd, signature, sig_len, 0) < 0)
+    {
+        perror("Sending signature failed");
+        free(signature);
+        return;
+    }
+
+    free(signature);
+}
+
+void verify_signature(int socket_fd, RSA *public_key)
