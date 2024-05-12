@@ -6,6 +6,7 @@
 #include <fcntl.h>
 #include "util.h"
 #include <openssl/sha.h>
+#include <openssl/pem.h>
 #include <gmp.h>
 
 int initKey(dhKey *k)
@@ -126,4 +127,43 @@ char *hashPK(dhKey *k, char *hash)
 		hash[i] = hc[((H[i / 2] << 4 * (i % 2)) & 0xf0) >> 4];
 	}
 	return hash;
+}
+
+// RSA
+// Function to load an RSA key from a file
+RSA *load_rsa_private_key(const char *filename)
+{
+	FILE *keyfile = fopen(filename, "rb");
+	if (!keyfile)
+	{
+		fprintf(stderr, "Failed to open private key file: %s\n", filename);
+		return NULL;
+	}
+	RSA *rsa = PEM_read_RSAPrivateKey(keyfile, NULL, NULL, NULL);
+	if (!rsa)
+	{
+		fprintf(stderr, "Failed to read RSA private key from file: %s\n", filename);
+	}
+	fclose(keyfile);
+	return rsa;
+}
+
+// Function to load an RSA public key from a file
+RSA *load_rsa_public_key(const char *filename)
+{
+	FILE *keyfile = fopen(filename, "rb");
+	if (!keyfile)
+	{
+		fprintf(stderr, "Failed to open public key file: %s\n", filename);
+		return NULL;
+	}
+
+	RSA *rsa = PEM_read_RSA_PUBKEY(keyfile, NULL, NULL, NULL);
+	if (!rsa)
+	{
+		fprintf(stderr, "Failed to read RSA public key from file: %s\n", filename);
+	}
+
+	fclose(keyfile);
+	return rsa;
 }
