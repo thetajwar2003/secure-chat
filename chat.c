@@ -7,7 +7,7 @@
 #include <openssl/rsa.h>
 #include <openssl/evp.h>
 #include <openssl/hmac.h>
-#includgit e <openssl/rand.h>
+#include <openssl/rand.h>
 #include <openssl/opensslv.h>
 #include <openssl/err.h>
 #include <getopt.h>
